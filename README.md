@@ -1,70 +1,155 @@
-# Getting Started with Create React App
+# SSR - side server rendering
+(Renderização do lado do servidor) 
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+npx create-react-app app6-ssr
 
-## Available Scripts
+Copyright.js
 
-In the project directory, you can run:
+~~~
+export default props => <h1>Recode Pro {props.ano}!</h1>;
+~~~
 
-### `npm start`
+App.js
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+~~~
+import Copyright from "./Copyright";
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+function App() {
+  return <Copyright ano="2021" />;
+}
 
-### `npm test`
+export default App;
+~~~
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+remover as linhas desnecessarias do index.js
 
-### `npm run build`
+substituir ReactDOM.render por ReactDOM.hydrate
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+npm i express
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+~~~
+import path from 'path';
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+import fs from 'fs';
 
-### `npm run eject`
+import React from 'react';
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+import express from 'express';
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+import ReactDOMServer from 'react-dom/server';
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
+import App from '../src/App';
 
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
+const PORT = process.env.PORT || 3006;
 
-## Learn More
+const app = express();
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+app.get('/', (req, res) => {
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+  const app = ReactDOMServer.renderToString(<App />);
 
-### Code Splitting
+  const indexFile = path.resolve('./build/index.html');
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+   fs.readFile(indexFile, 'utf8', (err, data) => {
 
-### Analyzing the Bundle Size
+    if (err) {
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
+       console.error('Something went wrong:', err);
 
-### Making a Progressive Web App
+      return res.status(500).send('Oops, better luck next time!');
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
+    }
 
-### Advanced Configuration
+    return res.send(
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
+       data.replace('<div id="root"></div>', `<div id="root">${app}</div>`)
 
-### Deployment
+    );
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
+  });
 
-### `npm run build` fails to minify
+});
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+app.use(express.static('./build'));
+
+app.listen(PORT, () => {
+
+  console.log(`Server is listening on port ${PORT}`);
+
+});
+~~~
+
+Pronto! Já temos nossa estrutura para fazer com que o aplicativo seja renderizado no servidor. Agora precisamos realizar as configurações necessárias.
+
+## Configurando o aplicativo para renderizar no servidor
+
+Para que o código do nosso servidor funcione, vamos precisar empacotar e transcompilá-lo  usando o webpack e o Babel. Para isso, vamos adicionar as dependências de desenvolvimento ao projeto inserindo o seguinte comando na  janela do terminal:
+
+~~~
+ npm install webpack-cli webpack-node-externals @babel/core babel-loader @babel/preset-env @babel/preset-react --save-dev
+~~~
+
+Vamos iniciar com o arquivo de configuração do Babel na raiz da pasta do projeto, criando um arquivo chamado “.babelrc.json” (iniciando com ponto assim mesmo) e inserindo o seguinte conteúdo:
+
+~~~
+{  
+    "presets": [
+    "@babel/preset-env",
+    "@babel/preset-react" 
+    ]
+}
+~~~
+
+O próximo arquivo de configuração é do webpack. Para isso, crie o arquivo chamado “webpack.server.js” , também na raiz do projeto, com o seguinte conteúdo: 
+
+~~~
+const path = require("path");
+const nodeExternals = require("webpack-node-externals");
+
+module.exports = {
+    
+  entry: "./server/index.js",
+  target: "node",
+  externals: [nodeExternals()],
+
+  output: {
+    path: path.resolve("server-build"),
+    filename: "index.js",
+  },
+
+  module: {
+    rules: [
+      {
+        test: /\.js$/,
+        use: "babel-loader",
+      },
+    ],
+  },
+};
+~~~
+
+Isso completa a instalação de dependência e webpack, assim como a configuração do Babel.
+
+ Com as dependências e configurações realizadas, precisamos fazer uma alteração no arquivo “package.json”, incluindo essas essas linhas de comandos na estrutura de “scripts”:
+
+ ~~~
+"dev:build-server": "webpack --config webpack.server.js --mode=development -w",
+"dev:start": "nodemon ./server-build/index.js",
+"dev": "npm-run-all --parallel build dev:*"
+ ~~~
+
+ Nesse comando usamos o módulo “nodemon” para reiniciar nosso servidor.
+
+ Outro módulo útil que precisamos instalar é o “npm-run-all" que, como o nome diz, apenas executa mais de um comando ao mesmo tempo, de forma paralela.
+
+Sendo assim, vamos instalar o nodemon e o npm-run-all em nosso projeto, com o comando a seguir:
+
+
+npm install nodemon npm-run-all --save-dev
+
+
+ Pronto! Todas as instalações e configurações foram realizadas. Por fim, para executar o aplicativo no servidor, precisamos executar o seguinte comando:
+
+npm run dev
+
+Agora, todo o aplicativo é renderizado no servidor e transpilado para HTML simples, que será enviado para o navegador como um site estático.
