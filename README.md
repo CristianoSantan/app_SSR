@@ -25,57 +25,44 @@ remover as linhas desnecessarias do index.js
 
 substituir ReactDOM.render por ReactDOM.hydrate
 
+Para poder ser executado no servidor, precisamos instalar o pacote Express. Para isso, execute o seguinte comando no prompt ou terminal:
+
 npm i express
+
+Ao finalizar, precisamos criar uma nova pasta chamada “server” na raiz do projeto (ficando no mesmo nível de “src”) e, nela, criar o arquivo “index.js”.
+
+Abaixo, o conteúdo do arquivo:
 
 ~~~
 import path from 'path';
-
 import fs from 'fs';
-
 import React from 'react';
-
 import express from 'express';
-
 import ReactDOMServer from 'react-dom/server';
-
 import App from '../src/App';
 
 const PORT = process.env.PORT || 3006;
-
 const app = express();
 
 app.get('/', (req, res) => {
-
   const app = ReactDOMServer.renderToString(<App />);
-
   const indexFile = path.resolve('./build/index.html');
 
    fs.readFile(indexFile, 'utf8', (err, data) => {
 
     if (err) {
-
        console.error('Something went wrong:', err);
-
       return res.status(500).send('Oops, better luck next time!');
-
     }
-
     return res.send(
-
        data.replace('<div id="root"></div>', `<div id="root">${app}</div>`)
-
     );
-
   });
-
 });
 
 app.use(express.static('./build'));
-
 app.listen(PORT, () => {
-
   console.log(`Server is listening on port ${PORT}`);
-
 });
 ~~~
 
@@ -83,7 +70,7 @@ Pronto! Já temos nossa estrutura para fazer com que o aplicativo seja renderiza
 
 ## Configurando o aplicativo para renderizar no servidor
 
-Para que o código do nosso servidor funcione, vamos precisar empacotar e transcompilá-lo  usando o webpack e o Babel. Para isso, vamos adicionar as dependências de desenvolvimento ao projeto inserindo o seguinte comando na  janela do terminal:
+Para que o código do nosso servidor funcione, vamos precisar empacotar e transcompilá-lo  usando o webpack e o Babel. Para isso, vamos adicionar as dependências de desenvolvimento ao projeto inserindo o seguinte comando na janela do terminal:
 
 ~~~
  npm install webpack-cli webpack-node-externals @babel/core babel-loader @babel/preset-env @babel/preset-react --save-dev
@@ -100,23 +87,20 @@ Vamos iniciar com o arquivo de configuração do Babel na raiz da pasta do proje
 }
 ~~~
 
-O próximo arquivo de configuração é do webpack. Para isso, crie o arquivo chamado “webpack.server.js” , também na raiz do projeto, com o seguinte conteúdo: 
+O próximo arquivo de configuração é do webpack. Para isso, crie o arquivo chamado “webpack.server.js”, também na raiz do projeto, com o seguinte conteúdo: 
 
 ~~~
 const path = require("path");
 const nodeExternals = require("webpack-node-externals");
 
 module.exports = {
-    
   entry: "./server/index.js",
   target: "node",
   externals: [nodeExternals()],
-
   output: {
     path: path.resolve("server-build"),
     filename: "index.js",
   },
-
   module: {
     rules: [
       {
@@ -130,7 +114,7 @@ module.exports = {
 
 Isso completa a instalação de dependência e webpack, assim como a configuração do Babel.
 
- Com as dependências e configurações realizadas, precisamos fazer uma alteração no arquivo “package.json”, incluindo essas essas linhas de comandos na estrutura de “scripts”:
+ Com as dependências e configurações realizadas, precisamos fazer uma alteração no arquivo “package.json”, incluindo essas linhas de comandos na estrutura de “scripts”:
 
  ~~~
 "dev:build-server": "webpack --config webpack.server.js --mode=development -w",
